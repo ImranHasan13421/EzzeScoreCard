@@ -1,10 +1,11 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 
-// Importing the exact filenames from your structure
+// Screens
 import 'screens/cricket.dart';
 import 'screens/badminton.dart';
 import 'screens/football.dart';
+import 'screens/sport_menu.dart'; // NEW IMPORT
 
 void main() {
   runApp(const EzzeScoreCardApp());
@@ -35,7 +36,7 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('EzzeScoreCard Dashboard'),
+        title: const Text('EzzeScoreCard Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: Padding(
@@ -43,9 +44,25 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildSportCard(context, 'Cricket Scorecard', Icons.sports_cricket, const CricketScreen()),
-            _buildSportCard(context, 'Badminton Scorecard', Icons.sports_tennis, const BadmintonScreen()),
-            _buildSportCard(context, 'Football Scorecard', Icons.sports_soccer, const FootballScreen()),
+            // Modified to route to SportMenuScreen instead of the raw games
+            _buildSportCard(
+                context,
+                'Cricket',
+                Icons.sports_cricket,
+                const SportMenuScreen(sportName: 'Cricket', newGameScreen: CricketScreen())
+            ),
+            _buildSportCard(
+                context,
+                'Badminton',
+                Icons.sports_tennis,
+                const SportMenuScreen(sportName: 'Badminton', newGameScreen: BadmintonScreen())
+            ),
+            _buildSportCard(
+                context,
+                'Football',
+                Icons.sports_soccer,
+                const SportMenuScreen(sportName: 'Football', newGameScreen: FootballScreen())
+            ),
           ],
         ),
       ),
@@ -64,7 +81,7 @@ class DashboardScreen extends StatelessWidget {
             children: [
               Icon(icon, size: 40, color: Colors.teal),
               const SizedBox(width: 20),
-              Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+              Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const Spacer(),
               const Icon(Icons.arrow_forward_ios),
             ],
