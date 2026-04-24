@@ -58,7 +58,8 @@ class _FootballScreenState extends State<FootballScreen> {
     final int millis = _stopwatch.elapsedMilliseconds;
     final int minutes = (millis ~/ 60000);
     final int seconds = (millis % 60000) ~/ 1000;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final int hundreds = (millis % 1000) ~/ 10; // 2 digits for milliseconds (00-99)
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}:${hundreds.toString().padLeft(2, '0')}';
   }
 
   String get formattedExtraTime {
@@ -89,7 +90,8 @@ class _FootballScreenState extends State<FootballScreen> {
       setState(() {});
     } else {
       _stopwatch.start();
-      _uiTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      // Fast 30ms refresh rate so the milliseconds visual looks perfectly smooth
+      _uiTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
         int elapsed = _stopwatch.elapsedMilliseconds;
         int halfMs = (match.totalTimeMinutes * 60 * 1000) ~/ 2;
         int fullMs = match.totalTimeMinutes * 60 * 1000;
@@ -198,10 +200,12 @@ class _FootballScreenState extends State<FootballScreen> {
       } else if (matchPhase == 2) {
         matchPhase = 3; // Match is Over
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Full Time! Match Over.')));
+
+        // --- NEW CODE: Show the visual result dialog ---
+        _showMatchResultDialog();
       }
     });
   }
-
 
   // --- SETUP FORM ACTIONS ---
   void _startMatch() {
@@ -340,6 +344,7 @@ class _FootballScreenState extends State<FootballScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Football Scorecard'),
         actions: isSetupPhase ? null : [IconButton(icon: const Icon(Icons.save), onPressed: _saveMatch)],
@@ -373,7 +378,6 @@ class _FootballScreenState extends State<FootballScreen> {
           TextField(controller: _teamBController, decoration: const InputDecoration(labelText: 'Team B Name', border: OutlineInputBorder())),
           const SizedBox(height: 15),
 
-          // NEW: Time input field
           TextField(
             controller: _timeController,
             keyboardType: TextInputType.number,
@@ -382,17 +386,19 @@ class _FootballScreenState extends State<FootballScreen> {
           const SizedBox(height: 20),
 
           DropdownButtonFormField<String>(
+            isExpanded: true, // FIX: Prevents text overflow in dropdown
             decoration: const InputDecoration(labelText: 'Toss Won By', border: OutlineInputBorder()),
             value: tossWinner,
-            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (val) => setState(() => tossWinner = val),
           ),
           const SizedBox(height: 15),
 
           DropdownButtonFormField<String>(
+            isExpanded: true, // FIX: Prevents text overflow in dropdown
             decoration: const InputDecoration(labelText: 'Ball', border: OutlineInputBorder()),
             value: ballWinner,
-            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (val) {
               setState(() {
                 ballWinner = val;
@@ -403,9 +409,10 @@ class _FootballScreenState extends State<FootballScreen> {
           const SizedBox(height: 15),
 
           DropdownButtonFormField<String>(
+            isExpanded: true, // FIX: Prevents text overflow in dropdown
             decoration: const InputDecoration(labelText: 'Bar', border: OutlineInputBorder()),
             value: barWinner,
-            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: teams.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (val) {
               setState(() {
                 barWinner = val;
@@ -433,21 +440,24 @@ class _FootballScreenState extends State<FootballScreen> {
         // Top Timer Module
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
           color: Colors.grey.shade200,
           child: Column(
             children: [
               Text(phaseText, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
 
-              // Standard Clock (Paused exactly at Half-time if Extra Time is running)
-              Text(formattedTime, style: const TextStyle(fontSize: 56, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+              // FIX: FittedBox prevents the massive timer from overflowing on narrow screens
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(formattedTime, style: const TextStyle(fontSize: 56, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+              ),
 
-              // Extra Time Countdown (Appears underneath when active)
+              // Extra Time Countdown
               if (isExtraTime)
                 Text(formattedExtraTime, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red)),
 
               const SizedBox(height: 10),
-              if (matchPhase != 3) // Hide button if match is fully over
+              if (matchPhase != 3)
                 IconButton(
                   iconSize: 50,
                   icon: Icon((isExtraTime ? _extraTimer?.isActive : _stopwatch.isRunning) ?? false
@@ -462,13 +472,17 @@ class _FootballScreenState extends State<FootballScreen> {
 
         // Score Board
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10), // FIX: Added horizontal padding
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildTeamScorer(match.teamA, match.teamAGoals, true),
-              const Text('VS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
-              _buildTeamScorer(match.teamB, match.teamBGoals, false),
+              // FIX: Expanded ensures the team column stays strictly in its half of the screen
+              Expanded(child: _buildTeamScorer(match.teamA, match.teamAGoals, true)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.0),
+                child: Text('VS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
+              ),
+              Expanded(child: _buildTeamScorer(match.teamB, match.teamBGoals, false)),
             ],
           ),
         ),
@@ -492,9 +506,20 @@ class _FootballScreenState extends State<FootballScreen> {
   Widget _buildTeamScorer(String teamName, int goals, bool isTeamA) {
     return Column(
       children: [
-        Text(teamName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        Text('$goals', style: const TextStyle(fontSize: 60, fontWeight: FontWeight.bold)),
-        if (matchPhase != 3) // Disable goals after full time
+        // FIX: textAlign center and maxLines ensures long names drop to a new line instead of overflowing
+        Text(
+            teamName,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+        ),
+        // FIX: FittedBox shrinks the score if it hits triple digits
+        FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('$goals', style: const TextStyle(fontSize: 60, fontWeight: FontWeight.bold))
+        ),
+        if (matchPhase != 3)
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
             onPressed: () => _recordGoal(isTeamA),
@@ -516,4 +541,147 @@ class _FootballScreenState extends State<FootballScreen> {
       },
     );
   }
+
+  void _showMatchResultDialog() {
+    String winnerText;
+    Color winnerColor;
+
+    if (match.teamAGoals > match.teamBGoals) {
+      winnerText = "🏆 ${match.teamA} WON! 🏆";
+      winnerColor = Colors.green.shade600;
+    } else if (match.teamBGoals > match.teamAGoals) {
+      winnerText = "🏆 ${match.teamB} WON! 🏆";
+      winnerColor = Colors.green.shade600;
+    } else {
+      winnerText = "🤝 MATCH DRAW 🤝";
+      winnerColor = Colors.orange.shade700;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Force user to use the cancel button
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          elevation: 10,
+          backgroundColor: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Wrap content
+              children: [
+                // Top Action Bar with Cancel Button
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.grey, size: 30),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+
+                // Header
+                const Text(
+                  "FULL TIME",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.teal),
+                ),
+                const SizedBox(height: 10),
+
+                // Score Display
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        match.teamA,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      "${match.teamAGoals} - ${match.teamBGoals}",
+                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900),
+                    ),
+                    Expanded(
+                      child: Text(
+                        match.teamB,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+
+                // Winner Announcement
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: winnerColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    winnerText,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: winnerColor),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(thickness: 1.5),
+                ),
+
+                // Match Details (Goals & Cards)
+                const Text("MATCH DETAILS", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const SizedBox(height: 10),
+
+                // Scrollable Events List (prevents overflow if there are many events)
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Team A Events
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: match.teamAEvents.isEmpty
+                                ? [const Text("No events", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))]
+                                : match.teamAEvents.map((e) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            )).toList(),
+                          ),
+                        ),
+                        // Divider
+                        Container(height: 100, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 10)),
+                        // Team B Events
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: match.teamBEvents.isEmpty
+                                ? [const Text("No events", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))]
+                                : match.teamBEvents.map((e) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            )).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
 }
