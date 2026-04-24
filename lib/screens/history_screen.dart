@@ -114,34 +114,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
       trailingText = "${match['overs']} Overs";
     }
     else if (widget.sportName == 'Badminton') {
-      title = match['match_name'] ?? 'Badminton Match';
-      subtitle = "Team A: ${match['team_a_score']}  |  Team B: ${match['team_b_score']}";
-      trailingText = "";
+      title = "${match['team_a'] ?? 'Player A'} vs ${match['team_b'] ?? 'Player B'}";
+      subtitle = "Sets Won: ${match['team_a_score']} - ${match['team_b_score']}";
+      trailingText = "Last Pts: ${match['final_set_score'] ?? ''}";
     }
 
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        leading: const CircleAvatar(
-          backgroundColor: Colors.teal,
-          child: Icon(Icons.emoji_events, color: Colors.white),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Text(subtitle, style: const TextStyle(fontSize: 16, color: Colors.black87)),
-        ),
-        // Group the original text and the new delete button together
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(trailingText, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-            const SizedBox(width: 10),
+            // 1. Trophy Icon
+            const CircleAvatar(
+              radius: 26,
+              backgroundColor: Colors.teal,
+              child: Icon(Icons.emoji_events, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+
+            // 2. Middle Text Area (Expanded guarantees it won't overflow the screen)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis, // Adds "..." if names are ridiculously long
+                  ),
+                  const SizedBox(height: 6),
+
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 15, color: Colors.black87),
+                  ),
+
+                  // Moving the extra info down here fixes the horizontal crowding!
+                  if (trailingText.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      trailingText,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.teal),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+
+            // 3. Delete Button (Anchored to the right)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 28),
               onPressed: () => _confirmDelete(context, match['file_path'], title),
             ),
           ],

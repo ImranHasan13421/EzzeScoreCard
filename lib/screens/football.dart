@@ -544,104 +544,68 @@ class _FootballScreenState extends State<FootballScreen> {
 
   void _showMatchResultDialog() {
     String winnerText;
-    Color winnerColor;
+    Widget topIcon;
 
+    // Determine Winner & Set Icon
     if (match.teamAGoals > match.teamBGoals) {
-      winnerText = "🏆 ${match.teamA} WON! 🏆";
-      winnerColor = Colors.green.shade600;
+      winnerText = "🏆 ${match.teamA} 🏆";
+      topIcon = const Icon(Icons.emoji_events, size: 80, color: Colors.amber);
     } else if (match.teamBGoals > match.teamAGoals) {
-      winnerText = "🏆 ${match.teamB} WON! 🏆";
-      winnerColor = Colors.green.shade600;
+      winnerText = "🏆 ${match.teamB} 🏆";
+      topIcon = const Icon(Icons.emoji_events, size: 80, color: Colors.amber);
     } else {
       winnerText = "🤝 MATCH DRAW 🤝";
-      winnerColor = Colors.orange.shade700;
+      topIcon = Icon(Icons.handshake, size: 80, color: Colors.orange.shade400);
     }
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Force user to use the cancel button
+      barrierDismissible: false, // Force user to use the Save & Exit button
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
           elevation: 10,
           backgroundColor: Colors.white,
-          child: Container(
-            padding: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Wrap content
+              mainAxisSize: MainAxisSize.min, // Wrap content tightly
               children: [
-                // Top Action Bar with Cancel Button
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.cancel, color: Colors.grey, size: 30),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
+                // Top Icon (Trophy or Handshake)
+                topIcon,
+                const SizedBox(height: 10),
 
                 // Header
                 const Text(
                   "FULL TIME",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.teal),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.teal),
                 ),
                 const SizedBox(height: 10),
 
-                // Score Display
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        match.teamA,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      "${match.teamAGoals} - ${match.teamBGoals}",
-                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900),
-                    ),
-                    Expanded(
-                      child: Text(
-                        match.teamB,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                // Winner Text
+                Text(
+                  winnerText,
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+
+                const Divider(height: 30, thickness: 2),
+
+                // Simple Score Summary
+                Text(
+                  "Final Score: ${match.teamA} ${match.teamAGoals} - ${match.teamBGoals} ${match.teamB}",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 15),
-
-                // Winner Announcement
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: winnerColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Text(
-                    winnerText,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: winnerColor),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Divider(thickness: 1.5),
-                ),
 
                 // Match Details (Goals & Cards)
                 const Text("MATCH DETAILS", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                 const SizedBox(height: 10),
 
-                // Scrollable Events List (prevents overflow if there are many events)
+                // Scrollable Events List
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -658,7 +622,7 @@ class _FootballScreenState extends State<FootballScreen> {
                           ),
                         ),
                         // Divider
-                        Container(height: 100, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 10)),
+                        Container(height: 80, width: 1, color: Colors.grey.shade300, margin: const EdgeInsets.symmetric(horizontal: 10)),
                         // Team B Events
                         Expanded(
                           child: Column(
@@ -675,6 +639,24 @@ class _FootballScreenState extends State<FootballScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 25),
+
+                // Huge Save & Exit Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), // Rounded like the image
+                    elevation: 3,
+                  ),
+                  onPressed: () {
+                    _saveMatch(); // Saves the JSON file
+                    Navigator.pop(context); // Closes the Dialog
+                    Navigator.pop(context); // Returns to the Sport Hub
+                  },
+                  child: const Text("SAVE & EXIT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                )
               ],
             ),
           ),

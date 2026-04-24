@@ -2,18 +2,43 @@
 
 class BadmintonMatch {
   String matchName;
+  String teamA;
+  String teamB;
   int teamAScore;
   int teamBScore;
-  DateTime date;
+  int teamASets;
+  int teamBSets;
+  int currentSet;
+  int totalSets;
+  int pointsToWin;
+  String servingTeam;
+  List<String> matchEvents;
 
-  BadmintonMatch({required this.matchName, required this.teamAScore, required this.teamBScore}) : date = DateTime.now();
+  BadmintonMatch({
+    required this.matchName,
+    this.teamA = "Team A",
+    this.teamB = "Team B",
+    this.teamAScore = 0,
+    this.teamBScore = 0,
+    this.teamASets = 0,
+    this.teamBSets = 0,
+    this.currentSet = 1,
+    this.totalSets = 3,
+    this.pointsToWin = 21,
+    this.servingTeam = "",
+    this.matchEvents = const [],
+  });
 
   Map<String, dynamic> toJson() => {
     'sport': 'Badminton',
     'match_name': matchName,
-    'date': date.toIso8601String(),
-    'team_a_score': teamAScore,
-    'team_b_score': teamBScore,
+    'team_a': teamA,
+    'team_b': teamB,
+    'team_a_score': teamASets, // Saving sets as the primary score for history
+    'team_b_score': teamBSets,
+    'final_set_score': '$teamAScore - $teamBScore',
+    'total_sets': totalSets,
+    'match_events': matchEvents,
   };
 }
 
