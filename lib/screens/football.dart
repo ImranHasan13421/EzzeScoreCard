@@ -4,7 +4,8 @@ import '../models/match_models.dart';
 import '../storage/file_manager.dart';
 
 class FootballScreen extends StatefulWidget {
-  const FootballScreen({super.key});
+  final Map<String, dynamic>? pausedMatchData; // <-- ADD THIS
+  const FootballScreen({super.key, this.pausedMatchData}); // <-- UPDATE THIS
 
   @override
   State<FootballScreen> createState() => _FootballScreenState();
@@ -230,7 +231,12 @@ class _FootballScreenState extends State<FootballScreen> {
   // --- MATCH ACTIONS ---
   void _saveMatch() async {
     match.finalTime = formattedTime;
-    await FileManager.saveMatchFile('Football', match.matchName, match.toJson());
+
+    // Create the data map and mark it as complete so History handles it correctly
+    Map<String, dynamic> data = match.toJson();
+    data['isComplete'] = true;
+
+    await FileManager.saveMatchFile('Football', data); // <-- REMOVED filename
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Football Match Saved!')));
   }
 

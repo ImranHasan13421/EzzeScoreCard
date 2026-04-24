@@ -1,10 +1,13 @@
-// lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
 import '../storage/file_manager.dart';
 
+// Import the sport screens so we can route to them when hitting "RESUME"
+import 'cricket.dart';
+import 'football.dart';
+import 'badminton.dart';
+
 class HistoryScreen extends StatefulWidget {
   final String sportName;
-
   const HistoryScreen({super.key, required this.sportName});
 
   @override
@@ -12,7 +15,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late Future<List<Map<String, dynamic>>> _matchesFuture;
+  bool isLoading = true;
+  List<Map<String, dynamic>> completedMatches = [];
+  List<Map<String, dynamic>> pausedMatches = [];
 
   @override
   void initState() {
@@ -20,157 +25,175 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _refreshMatches();
   }
 
-  // Reloads the list of files from storage
-  void _refreshMatches() {
+  void _refreshMatches() async {
+    setState(() => isLoading = true);
+    var allMatches = await FileManager.getSavedMatches(widget.sportName);
+
     setState(() {
-      _matchesFuture = FileManager.getSavedMatches(widget.sportName);
+      // If 'isComplete' is explicitly false, it goes to paused. Otherwise, assume completed.
+      pausedMatches = allMatches.where((m) => m['isComplete'] == false).toList();
+      completedMatches = allMatches.where((m) => m['isComplete'] != false).toList();
+      isLoading = false;
     });
   }
 
-  // Shows a popup confirming they want to delete the file
-  void _confirmDelete(BuildContext context, String filePath, String matchTitle) {
+  void _confirmDelete(String filePath, String matchTitle) {
     showDialog(
       context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: const Text("Delete Match?"),
-          content: Text("Are you sure you want to permanently delete '$matchTitle'?"),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text("CANCEL", style: TextStyle(color: Colors.grey))
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
-              onPressed: () async {
-                Navigator.pop(ctx); // Close dialog
-                bool success = await FileManager.deleteMatchFile(filePath);
-                if (success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Match deleted successfully.')));
-                  _refreshMatches(); // Refresh the list to remove the deleted card
-                }
-              },
-              child: const Text("DELETE"),
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Match?"),
+        content: Text("Permanently delete '$matchTitle'?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FileManager.deleteMatchFile(filePath);
+              _refreshMatches();
+            },
+            child: const Text("DELETE"),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _resumeMatch(Map<String, dynamic> matchData) {
+    Widget targetScreen;
+    if (widget.sportName == 'Cricket') targetScreen = CricketScreen(pausedMatchData: matchData);
+    else if (widget.sportName == 'Football') targetScreen = FootballScreen(pausedMatchData: matchData);
+    else targetScreen = BadmintonScreen(pausedMatchData: matchData);
+
+    // Navigate to the game screen, and refresh history when returning
+    Navigator.push(context, MaterialPageRoute(builder: (_) => targetScreen)).then((_) => _refreshMatches());
+  }
+
+  void _markMatchComplete(Map<String, dynamic> matchData) async {
+    matchData['isComplete'] = true;
+    await FileManager.saveMatchFile(widget.sportName, matchData);
+    _refreshMatches();
+  }
+
+  // --- UI Helpers ---
+  String _getTitle(Map<String, dynamic> m) {
+    if (widget.sportName == 'Cricket') return m['match_name'] ?? 'Cricket Match';
+    return "${m['team_a'] ?? 'A'} vs ${m['team_b'] ?? 'B'}";
+  }
+
+  String _getSubtitle(Map<String, dynamic> m) {
+    if (widget.sportName == 'Cricket') return "Score: ${m['runs']}/${m['wickets']} (${m['overs']} Ov)";
+    if (widget.sportName == 'Football') return "Score: ${m['team_a_goals'] ?? 0} - ${m['team_b_goals'] ?? 0}";
+    return "Sets Won: ${m['team_a_score']} - ${m['team_b_score']}";
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.sportName} History'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _matchesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text("Error loading matches."));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Text(
-                "No previous ${widget.sportName} matches found.",
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            );
-          }
-
-          final matches = snapshot.data!;
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: matches.length,
-            itemBuilder: (context, index) {
-              final match = matches[index];
-              return _buildMatchCard(match);
-            },
-          );
-        },
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('${widget.sportName} History'),
+          backgroundColor: Colors.teal,
+          foregroundColor: Colors.white,
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            indicatorColor: Colors.yellowAccent,
+            tabs: [Tab(text: "COMPLETE MATCHES"), Tab(text: "PAUSED MATCHES")],
+          ),
+        ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+          children: [
+            _buildList(completedMatches, false),
+            _buildList(pausedMatches, true),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMatchCard(Map<String, dynamic> match) {
-    String title = "Match Result";
-    String subtitle = "";
-    String trailingText = "";
+  Widget _buildList(List<Map<String, dynamic>> matches, bool isPausedList) {
+    if (matches.isEmpty) return Center(child: Text("No matches found.", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)));
 
-    // Dynamically format the card based on the Sport
-    if (widget.sportName == 'Football') {
-      title = "${match['team_a']} vs ${match['team_b']}";
-      subtitle = "Final Score: ${match['team_a_goals']} - ${match['team_b_goals']}";
-      trailingText = match['final_time'] ?? '';
-    }
-    else if (widget.sportName == 'Cricket') {
-      title = match['match_name'] ?? 'Cricket Match';
-      subtitle = "Score: ${match['runs']}/${match['wickets']}";
-      trailingText = "${match['overs']} Overs";
-    }
-    else if (widget.sportName == 'Badminton') {
-      title = "${match['team_a'] ?? 'Player A'} vs ${match['team_b'] ?? 'Player B'}";
-      subtitle = "Sets Won: ${match['team_a_score']} - ${match['team_b_score']}";
-      trailingText = "Last Pts: ${match['final_set_score'] ?? ''}";
-    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: matches.length,
+      itemBuilder: (context, index) {
+        return isPausedList ? _buildPausedCard(matches[index]) : _buildCompletedCard(matches[index]);
+      },
+    );
+  }
 
+  Widget _buildCompletedCard(Map<String, dynamic> match) {
+    String title = _getTitle(match);
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2, margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. Trophy Icon
-            const CircleAvatar(
-              radius: 26,
-              backgroundColor: Colors.teal,
-              child: Icon(Icons.emoji_events, color: Colors.white, size: 28),
-            ),
+            const CircleAvatar(backgroundColor: Colors.teal, child: Icon(Icons.emoji_events, color: Colors.white)),
             const SizedBox(width: 16),
-
-            // 2. Middle Text Area (Expanded guarantees it won't overflow the screen)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis, // Adds "..." if names are ridiculously long
-                  ),
-                  const SizedBox(height: 6),
-
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 15, color: Colors.black87),
-                  ),
-
-                  // Moving the extra info down here fixes the horizontal crowding!
-                  if (trailingText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trailingText,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.teal),
-                    ),
-                  ]
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(_getSubtitle(match), style: const TextStyle(fontSize: 15, color: Colors.black87)),
                 ],
               ),
             ),
+            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _confirmDelete(match['file_path'], title)),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // 3. Delete Button (Anchored to the right)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 28),
-              onPressed: () => _confirmDelete(context, match['file_path'], title),
+  Widget _buildPausedCard(Map<String, dynamic> match) {
+    String title = _getTitle(match);
+    return Card(
+      elevation: 4, margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.orange.shade300, width: 1.5)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.pause_circle_filled, color: Colors.orange, size: 28),
+                const SizedBox(width: 10),
+                Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+              ],
             ),
+            const SizedBox(height: 8),
+            Text(_getSubtitle(match), style: const TextStyle(fontSize: 15, color: Colors.black87)),
+            const Divider(height: 25),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.play_arrow, color: Colors.teal),
+                  label: const Text("RESUME", style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+                  onPressed: () => _resumeMatch(match),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                  label: const Text("FINISH", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  onPressed: () => _markMatchComplete(match),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () => _confirmDelete(match['file_path'], title),
+                )
+              ],
+            )
           ],
         ),
       ),

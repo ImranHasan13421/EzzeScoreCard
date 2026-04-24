@@ -3,7 +3,8 @@ import '../models/match_models.dart';
 import '../storage/file_manager.dart';
 
 class BadmintonScreen extends StatefulWidget {
-  const BadmintonScreen({super.key});
+  final Map<String, dynamic>? pausedMatchData; // <-- ADD THIS
+  const BadmintonScreen({super.key, this.pausedMatchData}); // <-- UPDATE THIS
 
   @override
   State<BadmintonScreen> createState() => _BadmintonScreenState();
@@ -134,7 +135,11 @@ class _BadmintonScreenState extends State<BadmintonScreen> {
   }
 
   void _saveMatch() async {
-    await FileManager.saveMatchFile('Badminton', 'DummyName', match.toJson());
+    // Create the data map and mark it as complete
+    Map<String, dynamic> data = match.toJson();
+    data['isComplete'] = true;
+
+    await FileManager.saveMatchFile('Badminton', data); // <-- REMOVED filename
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Badminton Match Saved!')));
   }
 
