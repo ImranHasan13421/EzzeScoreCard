@@ -441,25 +441,30 @@ class _CricketScreenState extends State<CricketScreen> {
               content: const Text("Your match is still running. You can save your progress and resume later from the History screen."),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(true), // Exits without saving
-                  child: const Text("NO, DISCARD", style: TextStyle(color: Colors.red)),
+                  // FIX: Passing 'false' blocks the back-swipe and keeps you in the game!
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("NO, CONTINUE GAME", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
                   onPressed: () async {
                     await _saveMatchState(isComplete: false); // SAVES PAUSED STATE!
-                    if (mounted) Navigator.of(context).pop(true); // Exits screen
+                    // Passing 'true' allows the back-swipe to finish and close the screen
+                    if (mounted) Navigator.of(context).pop(true);
                   },
                   child: const Text("SAVE PROGRESS & EXIT"),
                 )
               ],
             )
         );
-        return exit ?? false;
+        return exit ?? false; // If they tap outside the box, it defaults to false (stay in game)
       },
       child: Scaffold(
         resizeToAvoidBottomInset: isSetupPhase ? true : false,
-        appBar: AppBar(title: const Text('Cricket Scorecard')),
+        appBar: AppBar(
+          title: const Text('Cricket Scorecard'),
+          actions: isSetupPhase ? null : [IconButton(icon: const Icon(Icons.save), onPressed: () => _saveMatchState(isComplete: false))],
+        ),
         body: isSetupPhase ? _buildSetupForm() : _buildMatchScreen(),
       ),
     );
