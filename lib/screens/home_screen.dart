@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'sport_menu.dart';
 import 'cricket.dart';
@@ -11,48 +10,32 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        title: const Text('Ezze Sports Hub', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-        backgroundColor: Colors.teal.shade800,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('EZZE SPORTS HUB')),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 25.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Select a Sport", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal)),
-            const SizedBox(height: 20),
+            Text("Select a Sport", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Theme.of(context).primaryColor, letterSpacing: 0.5)),
+            const SizedBox(height: 25),
 
-            // 1. Cricket Card
             _buildSportCard(
-              context: context,
-              title: "Cricket",
-              icon: Icons.sports_cricket,
-              color: Colors.green.shade600,
+              context: context, title: "Cricket", icon: Icons.sports_cricket,
+              colors: [const Color(0xFF059669), const Color(0xFF10B981)], // Emerald Gradient
               gameScreen: const CricketScreen(),
             ),
             const SizedBox(height: 15),
 
-            // 2. Football Card
             _buildSportCard(
-              context: context,
-              title: "Football",
-              icon: Icons.sports_soccer,
-              color: Colors.blue.shade600,
+              context: context, title: "Football", icon: Icons.sports_soccer,
+              colors: [const Color(0xFF1E3A8A), const Color(0xFF3B82F6)], // Blue Gradient
               gameScreen: const FootballScreen(),
             ),
             const SizedBox(height: 15),
 
-            // 3. Badminton Card
             _buildSportCard(
-              context: context,
-              title: "Badminton",
-              icon: Icons.sports_tennis,
-              color: Colors.orange.shade600,
+              context: context, title: "Badminton", icon: Icons.sports_tennis,
+              colors: [const Color(0xFFEA580C), const Color(0xFFF97316)], // Orange Gradient
               gameScreen: const BadmintonScreen(),
             ),
           ],
@@ -61,28 +44,28 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // A reusable function to build beautiful menu cards
-  Widget _buildSportCard({required BuildContext context, required String title, required IconData icon, required Color color, required Widget gameScreen}) {
+  Widget _buildSportCard({required BuildContext context, required String title, required IconData icon, required List<Color> colors, required Widget gameScreen}) {
     return Expanded(
-      child: Card(
-        color: color,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: InkWell(
+      child: Container(
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            // This smartly passes the correct Sport and Screen to your SportMenu Hub!
-            Navigator.push(context, MaterialPageRoute(
-                builder: (context) => SportMenuScreen(sportName: title, newGameScreen: gameScreen)
-            ));
-          },
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 70, color: Colors.white),
-              const SizedBox(height: 10),
-              Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
-            ],
+          boxShadow: [BoxShadow(color: colors.last.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+          gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            splashColor: Colors.white24,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SportMenuScreen(sportName: title, newGameScreen: gameScreen))),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 70, color: Colors.white),
+                const SizedBox(height: 12),
+                Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
+              ],
+            ),
           ),
         ),
       ),
